@@ -1,244 +1,562 @@
-﻿<!DOCTYPE html>
-
-<html lang="en" xmlns="http://www.w3.org/1999/xhtml">
-<head>
-    <meta charset="utf-8" />
-    <title></title>
-</head>
+<!DOCTYPE html>
+<html>
 <body>
-	<canvas id="myCanvas" width="480" height="320"></canvas>
-</body>
+
+<canvas id="myCanvas" width="800" height="450" style="border:1px solid #00aa33;">
+    Your browser does not support the HTML5 canvas tag.
+</canvas>
+
 <script>
-	// Initialize Canvas.
-	var canvas = document.getElementById("myCanvas");
-	var ctx = canvas.getContext("2d");
-	// Initialize Bullet
-	var bulletX = 0;
-	var bulletY = 0;
-	var bulletdx = 0;
-	var bulletdy = 0;
-	// Initialize Ball.
-	var ballRadius = 10;
-	var x = canvas.width/2;
-	var y = canvas.height-30;
-	var dx = 0;	// Zero speed.
-	var dy = 0;
-	// Initialize Paddle.
-	var paddleHeight = 10;
-	var paddleWidth = 75;
-	var paddleX = (canvas.width-paddleWidth)/2;
-	var paddleY = (canvas.height-paddleHeight)/2;
-	// Initialize Input.
-	var mouseX = 0;
-	var mouseY = 0;
-	var rightPressed = false;
-	var leftPressed = false;
-	document.addEventListener("keydown", keyDownHandler, false);
-	document.addEventListener("keyup", keyUpHandler, false);
-	document.addEventListener("mousemove", mouseMoveHandler, false);
-	document.addEventListener("mousedown", mouseClickHandler, false);
-	//Initialize Bricks.
-	var brickRowCount = 5;
-	var brickColumnCount = 3;
-	var brickWidth = 75;
-	var brickHeight = 20;
-	var brickPadding = 10;
-	var brickOffsetTop = 30;
-	var brickOffsetLeft = 30;
-	var bricks = [];
-	// Spawn Bricks.
-	for(var c=0; c<brickColumnCount; c++) {
-	  bricks[c] = [];
-	  for(var r=0; r<brickRowCount; r++) {
-		bricks[c][r] = { x: 0, y: 0, status: 1 };
-	  }
-	}
-	// Initialize Game Statistics.
-	var score = 0;
-	var lives = 3;
+//      *** JAVASCRIPT STARTS HERE ***
+var c = document.getElementById("myCanvas");
+var ctx = c.getContext("2d");
 
-	//	GAMESTART	Functions
-	function resetBall() {
-		x = canvas.width/2;
-		y = canvas.height-ballRadius * 1.5;
-		dx = 0;
-		dy = 0;
-	}
+//  This is an arbitrary DEBUG Line Rendering Variable
+    var downwards = true;
+//  This is an arbitrary DEBUG Line Rendering Variable
+    var lineHeight = 0;
+//  This is an arbitrary DEBUG Tank Rendering Variable
+    var tankGreen = false;
+//  This is the DEBUG Tank Definition
+    var tank = spawnTank(spawnVector(0, 0), 0);
+//  This is the DEBUG Player Spawn Location
+    var spawnPoint = spawnVector(50, 50);
+//  This is the DEBUG Level
+    var level = spawnLevel();
+//  These are INPUT Values
+    var tankForwardButton = false;
+    var tankBackwardButton = false;
+    var tankRightButton = false;
+    var tankLeftButton = false;
+    var turretRightButton = false;
+    var turretLeftButton = false;
+	var fireButton = false;
+	var fired = false;
 
-	//	INPUT	Functions
-	function keyDownHandler(e) {
-	  if(e.keyCode == 39) {
-		rightPressed = true;
-	  }
-	  else if(e.keyCode == 37) {
-		leftPressed = true;
-	  }
-	}
-	function keyUpHandler(e) {
-	  if(e.keyCode == 39) {
-		rightPressed = false;
-	  }
-	  else if(e.keyCode == 37) {
-		leftPressed = false;
-	  }
-	}
-	function mouseMoveHandler(e) {
-	  mouseX = e.clientX - canvas.offsetLeft;
-	  mouseY = e.clientY - canvas.offsetTop;
-	  if(mouseX > 0 && mouseX < canvas.width && mouseY > 0 && mouseY < canvas.height ) {
-		paddleY = calcMagnitude(x-mouseX,y-mouseY);
-	  }
-	}
-	function mouseClickHandler(e) {
-	  bulletX = x;
-	  bulletY = y;
-	  bulletdx = (mouseX-x)/paddleY;
-	  bulletdy = (mouseY-y)/paddleY;
-	}
+//  Make a new Vector, of X and Y
+function spawnVector(aX, aY)
+{
+    let theVector = {x:aX, y:aY};
+    return theVector;
+}
 
-	//	COLLISION	Functions
-	function collisionDetection() {
-	  for(var c=0; c<brickColumnCount; c++) {
-		for(var r=0; r<brickRowCount; r++) {
-		  var b = bricks[c][r];
-		  if(b.status == 1) {
-			if(x > b.x && x < b.x+brickWidth && y > b.y && y < b.y+brickHeight) {
-			  dy = -dy;
-			  b.status = 0;
-			  score++;
-			  if(score == brickRowCount*brickColumnCount) {
-				alert("YOU WIN, CONGRATS!");
-				document.location.reload();
-			  }
-			}
-		  }
-		}
-	  }
-	}
+//	Makes a simple Array Vector for the collisions
+function mathVector(aX, aY)
+{
+    let theVector = [aX, aY];
+    return theVector;
+}
 
-	//	MATH	Functions
-	function calcMagnitude(aVal, bVal)
+//	Spawn a new Bullet, at a Tank Turret's Location and Direction
+function spawnBullet(aTank){
+	let newLocation = {
+		x: 0 + aTank.position.x + aTank.turret[0].x,
+		y: 0 + aTank.position.y + aTank.turret[0].y
+	};
+	let newDirection = {
+		x: 0 + (aTank.turret[0].x - aTank.turret[1].x) / 2,	// Half the DEBUG length of a tank's turret
+		y: 0 + (aTank.turret[0].y - aTank.turret[1].y) / 2	// Half the DEBUG length of a tank's turret
+	};
+	let finishedBullet = {location:newLocation, direction:newDirection};
+	return finishedBullet;
+}
+
+//  Spawn a new Tank, at a Vector Position and with a Rotation
+function spawnTank(aVector, aRotation){
+    let tankBody = [spawnVector(-10,-5),spawnVector(10,-5),spawnVector(10,5),spawnVector(-10,5)];
+    let tankTurret = [spawnVector(10,0),spawnVector(5,0),spawnVector(0,5),spawnVector(-5,0),spawnVector(0,-5)];
+    let tankPosition = aVector;
+    let finishedTank = {
+        position:tankPosition, body:tankBody, turret:tankTurret, angle:0, turretAngle:0, speed: 0.5
+    };
+    return finishedTank;
+}
+
+//  Copy an existing Tank
+function copyTank(aTank){
+    let tankPosition = spawnVector(aTank.position.x, aTank.position.y);
+    let tankBody = [];
+    for(let vIndex = 0; vIndex < aTank.body.length; vIndex++)
+    {
+        tankBody[vIndex] = spawnVector(aTank.body[vIndex].x, aTank.body[vIndex].y);
+    }
+    let tankTurret = [];
+    for(let vIndex = 0; vIndex < aTank.turret.length; vIndex++)
+    {
+        tankTurret[vIndex] = spawnVector(aTank.turret[vIndex].x, aTank.turret[vIndex].y);
+    }
+    let tankAngle = 0 + aTank.angle;
+    let tankTurretAngle = 0 + aTank.turretAngle;
+    let tankSpeed = 0 + aTank.speed;
+    let copiedTank = {
+        position:tankPosition, body:tankBody, turret:tankTurret, angle:tankAngle, turretAngle:tankTurretAngle, speed:tankSpeed
+    };
+    return copiedTank;
+}
+
+//  Spawn a new level, with A_TANK in it
+function spawnLevel(){
+    let levelTanks = [spawnTank(spawnPoint, 0), spawnTank(spawnVector(25,25), 90), spawnTank(spawnVector(75,75), 45)];
+	let levelShots = [];
+    let finishedLevel = {tanks:levelTanks, bullets:levelShots};
+    return finishedLevel;
+}
+
+//	Move bullets in a level the defined DEBUG amount
+function moveBullets(aLevel){
+	for(let bulletIndex = 0; bulletIndex < level.bullets.length; bulletIndex++)
 	{
-		return Math.sqrt(Math.pow(aVal,2) + Math.pow(bVal,2));
-	}
+		aLevel.bullets[bulletIndex].location.x += aLevel.bullets[bulletIndex].direction.x
+		aLevel.bullets[bulletIndex].location.y += aLevel.bullets[bulletIndex].direction.y
 
-	//	DRAW	Functions
-	function drawBall() {
-	  ctx.beginPath();
-	  ctx.arc(x, y, ballRadius, 0, Math.PI*2);
-	  ctx.fillStyle = "#0095DD";
-	  ctx.fill();
-	  ctx.closePath();
+		//	Delete Bullets outside the Level
+			aLevel.bullets = aLevel.bullets.filter(eachBullet =>
+				eachBullet.location.x > 0);
+			aLevel.bullets = aLevel.bullets.filter(eachBullet =>
+				eachBullet.location.x < c.width);
+			aLevel.bullets = aLevel.bullets.filter(eachBullet =>
+				eachBullet.location.y > 0);
+			aLevel.bullets = aLevel.bullets.filter(eachBullet =>
+				eachBullet.location.y < c.height);
 	}
-	function drawBullet() {
-		ctx.beginPath();
-		ctx.arc(bulletX, bulletY, ballRadius/2, 0, Math.PI*2);
-		ctx.fillStyle = "#DD9500";
-		ctx.fill();
-		ctx.closePath();
-		bulletX += bulletdx;
-		bulletY += bulletdy;
-	}
-	function drawPaddle() {
-	  ctx.beginPath();
-	  ctx.rect(paddleX, paddleY, paddleWidth, paddleHeight);
-	  ctx.fillStyle = "#0095DD";
-	  ctx.fill();
-	  ctx.closePath();
-	}
-	function drawBricks() {
-	  for(var c=0; c<brickColumnCount; c++) {
-		for(var r=0; r<brickRowCount; r++) {
-		  if(bricks[c][r].status == 1) {
-			var brickX = (r*(brickWidth+brickPadding))+brickOffsetLeft;
-			var brickY = (c*(brickHeight+brickPadding))+brickOffsetTop;
-			bricks[c][r].x = brickX;
-			bricks[c][r].y = brickY;
-			ctx.beginPath();
-			ctx.rect(brickX + brickHeight/2, brickY, brickWidth-brickHeight, brickHeight);
-			ctx.fillStyle = "#0095DD";
-			ctx.fill();
-			ctx.closePath();
+}
 
-			ctx.beginPath();
-			ctx.arc(brickX + brickHeight/2, brickY + brickHeight/2, ballRadius, 0, Math.PI*2);
-			ctx.fillStyle = "#0095DD";
-			ctx.fill();
-			ctx.closePath();
+function checkForWallCollision(aTank){
+    for(let vIndex = 0; vIndex < aTank.body.length; vIndex++)
+    {
+        if(aTank.body[vIndex].x + aTank.position.x < 0)
+            return true;
+        if(aTank.body[vIndex].y + aTank.position.y < 0)
+            return true;
+        if(aTank.body[vIndex].x + aTank.position.x > c.width)
+            return true;
+        if(aTank.body[vIndex].y + aTank.position.y > c.height)
+            return true;
+    }
+    
+    return false;
+}
 
-			ctx.beginPath();
-			ctx.arc(brickX + brickWidth - brickHeight/2, brickY + brickHeight/2, ballRadius, 0, Math.PI*2);
-			ctx.fillStyle = "#0095DD";
-			ctx.fill();
-			ctx.closePath();
-		  }
+ function dotproduct(a,b) {
+	var n = 0, lim = Math.min(a.length,b.length);
+	for (var i = 0; i < lim; i++) n += a[i] * b[i];
+	return n;
+ }
+
+function checkTanksForCollision(aMovingTank, aStandingTank){
+    let tankCollision = false;
+
+    for(let vIndex = 0; vIndex < aMovingTank.body.length; vIndex++)
+    {
+        // Compute vectors        
+        //v0 = C - A
+            let v0 = mathVector((aStandingTank.body[2].x + aStandingTank.position.x) - (aStandingTank.body[0].x + aStandingTank.position.x),
+				(aStandingTank.body[2].y + aStandingTank.position.y) - (aStandingTank.body[0].y + aStandingTank.position.y));
+        //v1 = B - A
+            let v1 = mathVector((aStandingTank.body[1].x + aStandingTank.position.x) - (aStandingTank.body[0].x + aStandingTank.position.x),
+				(aStandingTank.body[1].y + aStandingTank.position.y) - (aStandingTank.body[0].y + aStandingTank.position.y));
+        //v2 = P - A
+            let v2 = mathVector((aMovingTank.body[vIndex].x + aMovingTank.position.x) - (aStandingTank.body[0].x + aStandingTank.position.x),
+				(aMovingTank.body[vIndex].y + aMovingTank.position.y) - (aStandingTank.body[0].y + aStandingTank.position.y));
+
+        // Compute dot products
+        //dot00 = dot(v0, v0)
+            let dot00 = dotproduct(v0, v0);
+        //dot01 = dot(v0, v1)
+            let dot01 = dotproduct(v0, v1);
+        //dot02 = dot(v0, v2)
+            let dot02 = dotproduct(v0, v2);
+        //dot11 = dot(v1, v1)
+            let dot11 = dotproduct(v1, v1);
+        //dot12 = dot(v1, v2)
+            let dot12 = dotproduct(v1, v2);
+
+        // Compute barycentric coordinates
+        //invDenom = 1 / (dot00 * dot11 - dot01 * dot01)
+            let invDenom = 1 / (dot00 * dot11 - dot01 * dot01);
+        //u = (dot11 * dot02 - dot01 * dot12) * invDenom
+            let u = (dot11 * dot02 - dot01 * dot12) * invDenom;
+        //v = (dot00 * dot12 - dot01 * dot02) * invDenom
+            let v = (dot00 * dot12 - dot01 * dot02) * invDenom;
+
+        // Check if point is in triangle
+        //return (u >= 0) && (v >= 0) && (u + v < 1)
+            if((u >= 0) && (v >= 0) && (u + v < 1))
+            tankCollision = true;
+    }
+
+    for(let vIndex = 0; vIndex < aMovingTank.body.length; vIndex++)
+    {
+        // Compute vectors        
+        //v0 = C - A
+            let v0 = mathVector((aStandingTank.body[3].x + aStandingTank.position.x) - (aStandingTank.body[0].x + aStandingTank.position.x),
+				(aStandingTank.body[3].y + aStandingTank.position.y) - (aStandingTank.body[0].y + aStandingTank.position.y));
+        //v1 = B - A
+            let v1 = mathVector((aStandingTank.body[2].x + aStandingTank.position.x) - (aStandingTank.body[0].x + aStandingTank.position.x),
+				(aStandingTank.body[2].y + aStandingTank.position.y) - (aStandingTank.body[0].y + aStandingTank.position.y));
+        //v2 = P - A
+            let v2 = mathVector((aMovingTank.body[vIndex].x + aMovingTank.position.x) - (aStandingTank.body[0].x + aStandingTank.position.x),
+				(aMovingTank.body[vIndex].y + aMovingTank.position.y) - (aStandingTank.body[0].y + aStandingTank.position.y));
+
+        // Compute dot products
+        //dot00 = dot(v0, v0)
+            let dot00 = dotproduct(v0, v0);
+        //dot01 = dot(v0, v1)
+            let dot01 = dotproduct(v0, v1);
+        //dot02 = dot(v0, v2)
+            let dot02 = dotproduct(v0, v2);
+        //dot11 = dot(v1, v1)
+            let dot11 = dotproduct(v1, v1);
+        //dot12 = dot(v1, v2)
+            let dot12 = dotproduct(v1, v2);
+
+        // Compute barycentric coordinates
+        //invDenom = 1 / (dot00 * dot11 - dot01 * dot01)
+            let invDenom = 1 / (dot00 * dot11 - dot01 * dot01);
+        //u = (dot11 * dot02 - dot01 * dot12) * invDenom
+            let u = (dot11 * dot02 - dot01 * dot12) * invDenom;
+        //v = (dot00 * dot12 - dot01 * dot02) * invDenom
+            let v = (dot00 * dot12 - dot01 * dot02) * invDenom;
+
+        // Check if point is in triangle
+        //return (u >= 0) && (v >= 0) && (u + v < 1)
+            if((u >= 0) && (v >= 0) && (u + v < 1))
+            tankCollision = true;
+    }
+
+    if(tankCollision)
+    return true;
+    else
+    return false;
+}
+
+//  Drive a Tank, Forward or Backward
+function driveTank(aTank, aDirection){
+    let dTank = copyTank(aTank);
+
+    let driveCollision = false;
+
+    let movementVector = {x:0, y:0};
+    if(aDirection == "Forward") movementVector.x++;
+    if(aDirection == "Backward") movementVector.x--;
+    movementVector.x *= aTank.speed;
+    movementVector.y *= aTank.speed;
+    
+    dTank.position.x += movementVector.x * Math.cos(dTank.angle*(Math.PI/180))
+        - movementVector.y * Math.sin(aTank.angle*(Math.PI/180));
+    dTank.position.y += movementVector.x * Math.sin(dTank.angle*(Math.PI/180))
+        + movementVector.y * Math.cos(aTank.angle*(Math.PI/180));
+
+
+    driveCollision = checkForWallCollision(dTank);
+
+    //  This Loop uses DEBUG Level Value
+    if(driveCollision == false)
+        for(let tIndex = 1; tIndex < level.tanks.length; tIndex++)
+        {
+            if(checkTanksForCollision(dTank, level.tanks[tIndex]))
+                driveCollision = true;
+        }
+    
+    if(driveCollision == false)
+    {
+        aTank.position = dTank.position;
+    }
+}
+
+function turnTurret(aTank, aDirection){
+    if(aDirection == "Right") aTank.turretAngle++;
+    if(aDirection == "Left") aTank.turretAngle--;
+
+    if(aTank.turretAngle > 359)
+    aTank.turretAngle = 0;
+    if(aTank.turretAngle < 0)
+    aTank.turretAngle = 359;
+
+    let turretX = [];
+    let turretY = [];
+
+    for(let vIndex = 0; vIndex < aTank.turret.length; vIndex++)
+    {
+        turretX[vIndex] = 0 + tank.turret[vIndex].x * Math.cos((aTank.angle+aTank.turretAngle)*(Math.PI/180))
+            - tank.turret[vIndex].y * Math.sin((aTank.angle + aTank.turretAngle)*(Math.PI/180));
+        turretY[vIndex] = 0 + tank.turret[vIndex].x * Math.sin((aTank.angle+aTank.turretAngle)*(Math.PI/180))
+            + tank.turret[vIndex].y * Math.cos((aTank.angle+aTank.turretAngle)*(Math.PI/180));
+        aTank.turret[vIndex].x = turretX[vIndex];
+        aTank.turret[vIndex].y = turretY[vIndex];
+    }
+}
+
+//  Rotate a Tank, Right or Left
+function turnTank(aTank, aDirection){
+    let turnCollision = false;
+
+    let dTank = copyTank(aTank);
+    if(aDirection == "Right") dTank.angle = dTank.angle+1.5;	//	DEBUG amount 1.5
+    if(aDirection == "Left") dTank.angle = dTank.angle-1.5;	//	DEBUG amount 1.5
+    dTank.angle %= 360;
+
+    for(let vIndex = 0; vIndex < aTank.body.length; vIndex++)
+    {
+        dTank.body[vIndex].x = 0 + tank.body[vIndex].x * Math.cos(dTank.angle*(Math.PI/180))
+                - tank.body[vIndex].y * Math.sin(dTank.angle*(Math.PI/180));
+        dTank.body[vIndex].y = 0 + tank.body[vIndex].x * Math.sin(dTank.angle*(Math.PI/180))
+                + tank.body[vIndex].y * Math.cos(dTank.angle*(Math.PI/180));
+
+        turnCollision = checkForWallCollision(dTank);
+    }
+
+    if(turnCollision == false)
+    {
+        for(let tIndex = 1; tIndex < level.tanks.length; tIndex++)
+        {
+            if(checkTanksForCollision(dTank, level.tanks[tIndex]))
+                turnCollision = true;
+        }
+    }
+    if(turnCollision == false)
+    {
+        for(let tIndex = 1; tIndex < level.tanks.length; tIndex++)
+        {
+            if(checkTanksForCollision(level.tanks[tIndex], dTank))
+                turnCollision = true;
+        }
+    }
+    if(turnCollision == false)
+    {
+        for(let vIndex = 0; vIndex < aTank.body.length; vIndex++)
+        {
+            aTank.body[vIndex] = dTank.body[vIndex];
+        }
+        aTank.angle = 0 + dTank.angle;
+
+        let turretX = [];
+        let turretY = [];
+
+        for(let vIndex = 0; vIndex < aTank.turret.length; vIndex++)
+        {
+            turretX[vIndex] = 0 + tank.turret[vIndex].x * Math.cos((aTank.angle+aTank.turretAngle)*(Math.PI/180))
+                - tank.turret[vIndex].y * Math.sin((aTank.angle + aTank.turretAngle)*(Math.PI/180));
+            turretY[vIndex] = 0 + tank.turret[vIndex].x * Math.sin((aTank.angle+aTank.turretAngle)*(Math.PI/180))
+                + tank.turret[vIndex].y * Math.cos((aTank.angle+aTank.turretAngle)*(Math.PI/180));
+            aTank.turret[vIndex].x = turretX[vIndex];
+            aTank.turret[vIndex].y = turretY[vIndex];
+        }
+    }
+}
+
+//  Draw a specific Tank, on it's own Position
+function drawTank(aTank){
+    //  Render Body
+        ctx.beginPath();
+        ctx.strokeStyle = 'red';
+        ctx.moveTo(
+            aTank.position.x+aTank.body[0].x,
+            aTank.position.y+aTank.body[0].y
+        );
+        for(let vIndex = 1; vIndex < aTank.body.length; vIndex++)
+        {
+            ctx.lineTo(
+                aTank.position.x+aTank.body[vIndex].x,
+                aTank.position.y+aTank.body[vIndex].y
+            );
+        }
+        ctx.closePath();
+        ctx.stroke();
+    //  Body Rendered
+
+    //  Render Hatch
+        ctx.beginPath();
+        let hatchX = 0 + 5 * Math.cos(aTank.angle*(Math.PI/180))
+                - 0 * Math.sin(aTank.angle*(Math.PI/180));
+        let hatchY = 0 + 5 * Math.sin(aTank.angle*(Math.PI/180))
+                + 0 * Math.cos(aTank.angle*(Math.PI/180));
+        ctx.moveTo(aTank.position.x + aTank.body[1].x, aTank.position.y + aTank.body[1].y);
+        ctx.lineTo(aTank.position.x + hatchX*1, aTank.position.y + hatchY*1);
+        ctx.lineTo(aTank.position.x + aTank.body[2].x, aTank.position.y + aTank.body[2].y);
+        ctx.closePath();
+        ctx.stroke();
+    //  Hatch Rendered
+
+    //  Render Turret
+        ctx.beginPath();
+        ctx.strokeStyle = 'green';
+        ctx.moveTo(
+            aTank.position.x + aTank.turret[0].x,
+            aTank.position.y + aTank.turret[0].y
+        );
+        for(let vIndex = 1; vIndex < aTank.turret.length; vIndex++)
+        {
+            ctx.lineTo(
+                aTank.position.x+aTank.turret[vIndex].x,
+                aTank.position.y+aTank.turret[vIndex].y
+            );
+        }
+        ctx.lineTo(
+            aTank.position.x+aTank.turret[1].x,
+            aTank.position.y+aTank.turret[1].y
+        );
+        ctx.closePath();
+        ctx.stroke();
+    //  Turret Rendered
+}
+
+//	Draw all bullets in a Level
+function drawBullets(aLevel){
+	for(let bulletIndex = 0; bulletIndex < level.bullets.length; bulletIndex++)
+	{
+	    ctx.beginPath();
+        ctx.strokeStyle = 'red';
+        ctx.moveTo(
+            aLevel.bullets[bulletIndex].location.x,
+            aLevel.bullets[bulletIndex].location.y
+        );
+        ctx.lineTo(
+            aLevel.bullets[bulletIndex].location.x + aLevel.bullets[bulletIndex].direction.x,
+            aLevel.bullets[bulletIndex].location.y + aLevel.bullets[bulletIndex].direction.y
+        );
+        ctx.closePath();
+        ctx.stroke();
+	}
+}
+
+//  Draw Everything at this Stage of the Main Loop
+function draw(){
+    // Draw the DEBUG Line
+        ctx.clearRect(0,0,c.width,c.height);
+        ctx.beginPath();
+        ctx.strokeStyle = 'blue';
+        ctx.moveTo(0,lineHeight);
+        ctx.lineTo(c.width,lineHeight+c.height/2);
+        ctx.closePath();
+        ctx.stroke();
+
+    // Draw every Tank in the DEBUG Level
+        for(let tankIndex = 0; tankIndex < level.tanks.length; tankIndex++)
+            drawTank(level.tanks[tankIndex]);
+
+	// Draw every Bullet in the DEBUG Level
+		drawBullets(level);
+}
+
+//  Update Everything at this Stage of the Main Loop
+function update()
+{
+    // Debug line Drawing
+        if(downwards) lineHeight++;
+        else lineHeight--;
+        if(lineHeight<1||lineHeight>c.height/2) downwards = !downwards;
+
+	//	Move all existing Bullets in DEBUG level
+		moveBullets(level);
+
+    //  Drive Forward, when W is pressed
+        if(tankForwardButton)
+            driveTank(level.tanks[0], "Forward");
+    //  Drive Backward, when S is pressed
+        if(tankBackwardButton)
+            driveTank(level.tanks[0], "Backward");
+    //  Turn Right, when A is pressed
+        if(tankRightButton)
+            turnTank(level.tanks[0], "Right");
+    //  Turn Left, when A is pressed
+        if(tankLeftButton)
+            turnTank(level.tanks[0], "Left");
+    //  Turn Turret Right, when L is pressed
+        if(turretRightButton)
+            turnTurret(level.tanks[0], "Right");
+    //  Turn Turret Left, when J is pressed
+        if(turretLeftButton)
+            turnTurret(level.tanks[0], "Left");
+	//	Fire a new Bullet once when Space is pressed
+		if(fireButton == true && fired == false)
+		{
+			level.bullets.push(spawnBullet(level.tanks[0]));	//	Fires a new Bullet from the Player Tank in the DEBUG level
+			fired = true;
 		}
-	  }
-	}
-	function drawScore() {
-	  ctx.font = "16px Arial";
-	  ctx.fillStyle = "#0095DD";
-	  ctx.fillText("Score: "+score, 8, 20);
-	  // Debug Information.
-	  ctx.fillText("Paddle Y: "+ paddleY, 8, 150);
-	}
-	function drawLives() {
-	  ctx.font = "16px Arial";
-	  ctx.fillStyle = "#0095DD";
-	  ctx.fillText("Lives: "+lives, canvas.width-65, 20);
-	}
-
-	function draw() {
-	  ctx.clearRect(0, 0, canvas.width, canvas.height);
-	  drawBricks();
-	  drawBullet();
-	  drawBall();
-	  drawPaddle();
-	  drawScore();
-	  drawLives();
-	  //	Aim Debug
-		ctx.beginPath();
-		ctx.moveTo(x, y);
-		ctx.lineTo(mouseX, mouseY);
-		ctx.stroke(); 
-	  collisionDetection();
-
-	  if(x + dx > canvas.width-ballRadius || x + dx < ballRadius) {
-		dx = -dx;
-	  }
-	  if(y + dy < ballRadius) {
-		dy = -dy;
-	  }
-	  else if(y + dy > canvas.height-ballRadius) {
-		if(x > paddleX && x < paddleX + paddleWidth) {
-		  dy = -dy;
+	//	Reload a new bullet when space is released
+		if(fireButton == false)
+		{
+			fired = false;
 		}
-		else {
-		  lives--;
-		  if(!lives) {
-			alert("GAME OVER");
-			document.location.reload();
-		  }
-		  else {
-			resetBall();
-			paddleX = (canvas.width-paddleWidth)/2;
-		  }
-		}
-	  }
+}
 
-	  if(rightPressed && paddleX < canvas.width-paddleWidth) {
-		paddleX += 7;
-	  }
-	  else if(leftPressed && paddleX > 0) {
-		paddleX -= 7;
-	  }
+//  MAIN_LOOP
+function mainLoop() {
+    update();
+    draw();
+    requestAnimationFrame(mainLoop);
+}
 
-	  x += dx;
-	  y += dy;
-	  requestAnimationFrame(draw);
-	}
+window.addEventListener('keydown',this.checkKeyDown,false);
+window.addEventListener('keyup',this.checkKeyUp,false);
 
-	resetBall();
-	draw();
+function checkKeyDown(e) {
+    //alert(e.keyCode);
+    if(e.keyCode == 87)
+    {
+        tankForwardButton = true;
+    }
+    if(e.keyCode == 83)
+    {
+        tankBackwardButton = true;
+    }
+    if(e.keyCode == 68)
+    {
+        tankRightButton = true;
+    }
+    if(e.keyCode == 65)
+    {
+        tankLeftButton = true;
+    }
+    if(e.keyCode == 76)
+    {
+        turretRightButton = true;
+    }
+    if(e.keyCode == 74)
+    {
+        turretLeftButton = true;
+    }
+	if(e.keyCode == 32)
+    {
+        fireButton = true;
+    }
+}
+
+function checkKeyUp(e) {
+    if(e.keyCode == 87)
+    {
+        tankForwardButton = false;
+    }
+    if(e.keyCode == 83)
+    {
+        tankBackwardButton = false;
+    }
+    if(e.keyCode == 68)
+    {
+        tankRightButton = false;
+    }
+    if(e.keyCode == 65)
+    {
+        tankLeftButton = false;
+    }
+    if(e.keyCode == 76)
+    {
+        turretRightButton = false;
+    }
+    if(e.keyCode == 74)
+    {
+        turretLeftButton = false;
+    }
+		if(e.keyCode == 32)
+    {
+        fireButton = false;
+    }
+}
+
+// Run the Main Loop
+requestAnimationFrame(mainLoop);
 </script>
+
+</body>
 </html>
